@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Notes Transcriber</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 16px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .upload-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .file-label {
+            display: block;
+            background: #f0f0f0;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-label:hover {
+            border-color: #007AFF;
+            background: #f8f9ff;
+        }
+
+        .file-label.has-file {
+            border-color: #34C759;
+            background: #f0fff4;
+        }
+
+        .file-label .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .file-label .text {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .file-label .filename {
+            color: #333;
+            font-weight: 600;
+            margin-top: 8px;
+            word-break: break-all;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .submit-btn:hover {
+            background: #0056b3;
+        }
+
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f0f0f0;
+            border-top-color: #007AFF;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .progress-steps {
+            margin: 20px 0;
+            text-align: left;
+            max-width: 280px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .progress-step {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            color: #999;
+            font-size: 15px;
+        }
+
+        .progress-step.active {
+            color: #007AFF;
+            font-weight: 600;
+        }
+
+        .progress-step.done {
+            color: #34C759;
+        }
+
+        .progress-step .step-icon {
+            width: 24px;
+            margin-right: 12px;
+            text-align: center;
+        }
+
+        .progress-step.active .step-icon::after {
+            content: "";
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #007AFF;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .progress-step.done .step-icon::after {
+            content: "✓";
+        }
+
+        .progress-step.pending .step-icon::after {
+            content: "○";
+        }
+
+        .elapsed-time {
+            margin-top: 16px;
+            font-size: 14px;
+            color: #888;
+        }
+
+        .upload-progress {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            margin-top: 12px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .upload-progress.active {
+            display: block;
+        }
+
+        .upload-progress-bar {
+            height: 100%;
+            background: #007AFF;
+            border-radius: 3px;
+            transition: width 0.2s;
+            width: 0%;
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .result-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 16px;
+        }
+
+        .result-section h2 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .copy-btn {
+            background: #f0f0f0;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .copy-btn.copied {
+            background: #34C759;
+            color: white;
+        }
+
+        .transcript-text {
+            color: #555;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .summary-text {
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .summary-text ul {
+            padding-left: 20px;
+            margin: 8px 0;
+        }
+
+        .summary-text li {
+            margin-bottom: 8px;
+        }
+
+        .summary-text p {
+            margin-bottom: 12px;
+        }
+
+        .summary-text strong {
+            font-weight: 600;
+        }
+
+        .next-steps-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .next-steps-list li {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .next-steps-list li::before {
+            content: "→ ";
+            color: #007AFF;
+            font-weight: bold;
+        }
+
+        .error {
+            background: #fff0f0;
+            border: 1px solid #ffcdd2;
+            border-radius: 8px;
+            padding: 16px;
+            color: #c62828;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .reset-btn {
+            width: 100%;
+            background: #f0f0f0;
+            color: #333;
+            border: none;
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .reset-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .prompt-customizer {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .prompt-customizer summary {
+            cursor: pointer;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .prompt-customizer summary:hover {
+            color: #007AFF;
+        }
+
+        .prompt-customizer textarea {
+            width: 100%;
+            min-height: 100px;
+            margin-top: 12px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        .prompt-customizer textarea:focus {
+            outline: none;
+            border-color: #007AFF;
+        }
+
+        .resummarize-btn {
+            margin-top: 12px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .resummarize-btn:hover {
+            background: #0056b3;
+        }
+
+        .resummarize-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Voice Notes Transcriber</h1>
+
+        <div class="upload-section" id="uploadSection">
+            <form id="uploadForm">
+                <div class="file-input-wrapper">
+                    <input type="file" id="audioFile" accept=".m4a,.mp3,.wav,.webm,.ogg,.mp4,.aac,audio/*">
+                    <label for="audioFile" class="file-label" id="fileLabel">
+                        <div class="icon">🎙️</div>
+                        <div class="text">Tap to select audio file</div>
+                        <div class="filename" id="fileName"></div>
+                    </label>
+                </div>
+                <button type="submit" class="submit-btn" id="submitBtn" disabled>
+                    Transcribe & Summarize
+                </button>
+            </form>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="font-size: 18px; font-weight: 600; color: #333;">Processing your recording</p>
+
+            <div class="progress-steps">
+                <div class="progress-step pending" id="step-upload">
+                    <span class="step-icon"></span>
+                    <span>Uploading audio</span>
+                </div>
+                <div class="progress-step pending" id="step-transcribe">
+                    <span class="step-icon"></span>
+                    <span>Transcribing speech</span>
+                </div>
+                <div class="progress-step pending" id="step-summarize">
+                    <span class="step-icon"></span>
+                    <span>Generating summary</span>
+                </div>
+            </div>
+
+            <div class="upload-progress" id="uploadProgress">
+                <div class="upload-progress-bar" id="uploadProgressBar"></div>
+            </div>
+
+            <div class="elapsed-time" id="elapsedTime">0:00</div>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="results" id="results">
+            <div class="result-section">
+                <h2>
+                    Pain Points
+                    <button class="copy-btn" onclick="copyToClipboard('summary')">Copy</button>
+                </h2>
+                <div class="summary-text" id="summary"></div>
+
+                <details class="prompt-customizer">
+                    <summary>Customize prompt</summary>
+                    <textarea id="customPrompt" placeholder="Enter custom prompt for summary...">Identify and list the pain points, problems, or challenges mentioned by the user/customer in this recording.
+
+Format as bullet points:
+- [Pain point 1]
+- [Pain point 2]
+- etc.
+
+Be specific and capture the exact issues they're facing.</textarea>
+                    <button class="resummarize-btn" onclick="resummarize()">
+                        Re-summarize
+                    </button>
+                </details>
+            </div>
+
+            <div class="result-section">
+                <h2>
+                    Next Steps
+                    <button class="copy-btn" onclick="copyToClipboard('nextSteps')">Copy</button>
+                </h2>
+                <ul class="next-steps-list" id="nextSteps"></ul>
+            </div>
+
+            <div class="result-section">
+                <h2>
+                    Full Transcript
+                    <button class="copy-btn" onclick="copyToClipboard('transcript')">Copy</button>
+                </h2>
+                <div class="transcript-text" id="transcript"></div>
+            </div>
+
+            <button class="reset-btn" onclick="resetForm()">Process Another Recording</button>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('audioFile');
+        const fileLabel = document.getElementById('fileLabel');
+        const fileName = document.getElementById('fileName');
+        const submitBtn = document.getElementById('submitBtn');
+        const uploadSection = document.getElementById('uploadSection');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const error = document.getElementById('error');
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                fileName.textContent = file.name;
+                fileLabel.classList.add('has-file');
+                submitBtn.disabled = false;
+            } else {
+                fileName.textContent = '';
+                fileLabel.classList.remove('has-file');
+                submitBtn.disabled = true;
+            }
+        });
+
+        let timerInterval = null;
+        let startTime = null;
+
+        function setStep(stepId, status) {
+            const steps = ['step-upload', 'step-transcribe', 'step-summarize'];
+            steps.forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.remove('active', 'done', 'pending');
+                if (id === stepId) {
+                    el.classList.add(status);
+                } else if (steps.indexOf(id) < steps.indexOf(stepId)) {
+                    el.classList.add('done');
+                } else {
+                    el.classList.add('pending');
+                }
+            });
+        }
+
+        function resetSteps() {
+            ['step-upload', 'step-transcribe', 'step-summarize'].forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.remove('active', 'done');
+                el.classList.add('pending');
+            });
+        }
+
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const mins = Math.floor(elapsed / 60);
+                const secs = elapsed % 60;
+                document.getElementById('elapsedTime').textContent =
+                    `${mins}:${secs.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            // Show loading
+            uploadSection.style.display = 'none';
+            loading.classList.add('active');
+            error.classList.remove('active');
+            results.classList.remove('active');
+            resetSteps();
+            document.getElementById('elapsedTime').textContent = '0:00';
+            startTimer();
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Use XMLHttpRequest for upload progress
+            const xhr = new XMLHttpRequest();
+            const uploadProgress = document.getElementById('uploadProgress');
+            const uploadProgressBar = document.getElementById('uploadProgressBar');
+
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    uploadProgressBar.style.width = percent + '%';
+                }
+            });
+
+            xhr.upload.addEventListener('loadstart', () => {
+                setStep('step-upload', 'active');
+                uploadProgress.classList.add('active');
+                uploadProgressBar.style.width = '0%';
+            });
+
+            xhr.upload.addEventListener('load', () => {
+                setStep('step-transcribe', 'active');
+                uploadProgress.classList.remove('active');
+            });
+
+            xhr.addEventListener('load', () => {
+                stopTimer();
+                try {
+                    const data = JSON.parse(xhr.responseText);
+
+                    if (xhr.status !== 200) {
+                        throw new Error(data.detail || 'Failed to process recording');
+                    }
+
+                    // Mark all steps done
+                    ['step-upload', 'step-transcribe', 'step-summarize'].forEach(id => {
+                        const el = document.getElementById(id);
+                        el.classList.remove('active', 'pending');
+                        el.classList.add('done');
+                    });
+
+                    // Display results
+                    document.getElementById('transcript').textContent = data.transcript;
+                    const summaryEl = document.getElementById('summary');
+                    summaryEl.dataset.raw = data.summary;
+                    summaryEl.innerHTML = marked.parse(data.summary);
+
+                    const nextStepsList = document.getElementById('nextSteps');
+                    nextStepsList.innerHTML = '';
+                    data.next_steps.forEach(step => {
+                        const li = document.createElement('li');
+                        li.textContent = step;
+                        nextStepsList.appendChild(li);
+                    });
+
+                    setTimeout(() => {
+                        loading.classList.remove('active');
+                        results.classList.add('active');
+                    }, 500);
+
+                } catch (err) {
+                    loading.classList.remove('active');
+                    uploadSection.style.display = 'block';
+                    error.textContent = err.message;
+                    error.classList.add('active');
+                }
+            });
+
+            xhr.addEventListener('error', () => {
+                stopTimer();
+                loading.classList.remove('active');
+                uploadSection.style.display = 'block';
+                error.textContent = 'Network error - please try again';
+                error.classList.add('active');
+            });
+
+            xhr.open('POST', '/api/transcribe');
+            xhr.send(formData);
+        });
+
+        function copyToClipboard(elementId) {
+            let text;
+            if (elementId === 'nextSteps') {
+                const items = document.querySelectorAll('#nextSteps li');
+                text = Array.from(items).map(li => '- ' + li.textContent).join('\n');
+            } else if (elementId === 'summary') {
+                text = document.getElementById(elementId).dataset.raw || document.getElementById(elementId).textContent;
+            } else {
+                text = document.getElementById(elementId).textContent;
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        function resetForm() {
+            fileInput.value = '';
+            fileName.textContent = '';
+            fileLabel.classList.remove('has-file');
+            submitBtn.disabled = true;
+            results.classList.remove('active');
+            uploadSection.style.display = 'block';
+            document.getElementById('exportSuccess').classList.remove('active');
+        }
+
+        // Re-summarize with custom prompt
+        async function resummarize() {
+            const btn = document.querySelector('.resummarize-btn');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            const transcript = document.getElementById('transcript').textContent;
+            const customPrompt = document.getElementById('customPrompt').value;
+
+            try {
+                const response = await fetch('/api/resummarize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        transcript,
+                        summary_prompt: customPrompt || null
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.detail || 'Re-summarize failed');
+                }
+
+                const data = await response.json();
+
+                // Update summary
+                const summaryEl = document.getElementById('summary');
+                summaryEl.dataset.raw = data.summary;
+                summaryEl.innerHTML = marked.parse(data.summary);
+
+                // Update next steps
+                const nextStepsList = document.getElementById('nextSteps');
+                nextStepsList.innerHTML = '';
+                data.next_steps.forEach(step => {
+                    const li = document.createElement('li');
+                    li.textContent = step;
+                    nextStepsList.appendChild(li);
+                });
+
+                btn.textContent = 'Done!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }, 1500);
+
+            } catch (err) {
+                alert('Re-summarize failed: ' + err.message);
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+    </script>
+</body>
+</html>
