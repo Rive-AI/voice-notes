@@ -337,6 +337,27 @@
             background: #e0e0e0;
         }
 
+        .notion-btn {
+            width: 100%;
+            background: #000;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+
+        .notion-btn:hover {
+            background: #333;
+        }
+
+        .notion-btn.copied {
+            background: #34C759;
+        }
+
         .prompt-customizer {
             margin-top: 16px;
             padding-top: 16px;
@@ -479,6 +500,9 @@ Be specific and capture the exact issues they're facing.</textarea>
                 <div class="transcript-text" id="transcript"></div>
             </div>
 
+            <button class="notion-btn" id="notionBtn" onclick="copyForNotion()">
+                Copy to Notion
+            </button>
             <button class="reset-btn" onclick="resetForm()">Process Another Recording</button>
         </div>
     </div>
@@ -677,6 +701,26 @@ Be specific and capture the exact issues they're facing.</textarea>
             results.classList.remove('active');
             uploadSection.style.display = 'block';
             document.getElementById('exportSuccess').classList.remove('active');
+        }
+
+        // Copy all to clipboard as markdown for Notion
+        function copyForNotion() {
+            const summary = document.getElementById('summary').dataset.raw || document.getElementById('summary').textContent;
+            const nextStepsItems = document.querySelectorAll('#nextSteps li');
+            const nextSteps = Array.from(nextStepsItems).map(li => '- ' + li.textContent).join('\n');
+            const transcript = document.getElementById('transcript').textContent;
+
+            const markdown = `## Pain Points\n\n${summary}\n\n## Next Steps\n\n${nextSteps}\n\n## Full Transcript\n\n${transcript}`;
+
+            navigator.clipboard.writeText(markdown).then(() => {
+                const btn = document.getElementById('notionBtn');
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = 'Copy to Notion';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
         }
 
         // Re-summarize with custom prompt
