@@ -40,6 +40,8 @@ def transcribe_audio(file_path: str) -> str:
     audio_file = genai.upload_file(file_path, mime_type=mime_type)
 
     # Transcribe with speaker diarization
+    # Set max_output_tokens high enough for long recordings (1hr+ ≈ 20k+ tokens)
+    generation_config = genai.types.GenerationConfig(max_output_tokens=65536)
     response = model.generate_content([
         """Transcribe this audio recording accurately.
 
@@ -57,6 +59,6 @@ CRITICAL RULES - you must follow these exactly:
 - If someone says "嗯" once, write it once — do not repeat it dozens of times
 - Only transcribe what was genuinely spoken""",
         audio_file
-    ])
+    ], generation_config=generation_config)
 
     return response.text.strip()
